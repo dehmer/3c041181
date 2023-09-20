@@ -47,14 +47,12 @@ function RowVirtualizerDynamic() {
                 key={virtualRow.key}
                 data-index={virtualRow.index}
                 ref={virtualizer.measureElement}
+                style={{ padding: '10px 10px' }}
                 className={
                   virtualRow.index % 2 ? 'ListItemOdd' : 'ListItemEven'
                 }
               >
-                <div style={{ padding: '10px 0' }}>
-                  <div>Row {virtualRow.index}</div>
-                  <div>{sentences[virtualRow.index]}</div>
-                </div>
+                <b>Row {virtualRow.index}</b>: {sentences[virtualRow.index]}
               </div>
             ))}
           </div>

@@ -20,9 +20,12 @@ body {
   width: 400px;
   overflow-y: auto;
   contain: strict;
+}
 
+.ListItemOdd {
+  background-color: #00CCFF;
 }
 
 .ListItemEven {
-  background-color: #e6e4dc;
+  background-color: yellow;
 }
