@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { faker } from '@faker-js/faker'
 import { useVirtualizer } from './react'
+import './App.css'
 
 const randomNumber = (min, max) => faker.number.int({ min, max })
 
@@ -24,12 +25,6 @@ function RowVirtualizerDynamic() {
       <div
         ref={parentRef}
         className='List'
-        style={{
-          height: 400,
-          width: 400,
-          overflowY: 'auto',
-          contain: 'strict'
-        }}
       >
         <div
           style={{
