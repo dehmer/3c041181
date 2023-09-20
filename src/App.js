@@ -2,15 +2,14 @@ import * as React from 'react'
 import { faker } from '@faker-js/faker'
 import { useVirtualizer } from './react'
 
-const randomNumber = (min, max) => faker.datatype.number({ min, max })
+const randomNumber = (min, max) => faker.number.int({ min, max })
 
-const sentences = new Array(10000)
+const sentences = new Array(2000)
   .fill(true)
   .map(() => faker.lorem.sentence(randomNumber(20, 70)))
 
 function RowVirtualizerDynamic() {
   const parentRef = React.useRef(null)
-
   const count = sentences.length
   const virtualizer = useVirtualizer({
     count,
