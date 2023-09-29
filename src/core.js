@@ -116,28 +116,22 @@ export class Virtualizer {
 
     this.options = {
       debug: false,
-      initialOffset: 0,
       overscan: 1,
       paddingStart: 0,
       paddingEnd: 0,
       scrollPaddingStart: 0,
       scrollPaddingEnd: 0,
       onChange: () => {},
-      initialRect: { width: 0, height: 0 },
       scrollMargin: 0,
       scrollingDelay: 150,
       indexAttribute: "data-index",
-      initialMeasurementsCache: [],
       lanes: 1,
       ...options
     }
 
-    this.scrollRect = this.options.initialRect
-    this.scrollOffset = this.options.initialOffset
-    this.measurementsCache = this.options.initialMeasurementsCache
-    this.measurementsCache.forEach(item => {
-      this.itemSizeCache.set(item.key, item.size)
-    })
+    this.scrollRect = { width: 0, height: 0 }
+    this.scrollOffset = 0
+    this.measurementsCache = []
 
     this.maybeNotify()
   }
@@ -216,25 +210,6 @@ export class Virtualizer {
     return this.scrollRect.height
   }
 
-  memoOptions = memo(
-    () => [
-      this.options.count,
-      this.options.paddingStart,
-      this.options.scrollMargin
-    ],
-    (count, paddingStart, scrollMargin) => {
-      this.pendingMeasuredCacheIndexes = []
-      return {
-        count,
-        paddingStart,
-        scrollMargin
-      }
-    },
-    {
-      key: false
-    }
-  )
-
   getFurthestMeasurement = (measurements, index) => {
     const furthestMeasurementsFound = new Map()
     const furthestMeasurements = new Map()
@@ -270,8 +245,8 @@ export class Virtualizer {
   }
 
   getMeasurements = memo(
-    () => [this.memoOptions(), this.itemSizeCache],
-    ({ count, paddingStart, scrollMargin }, itemSizeCache) => {
+    () => [this.itemSizeCache],
+    (itemSizeCache) => {
       const min =
         this.pendingMeasuredCacheIndexes.length > 0
           ? Math.min(...this.pendingMeasuredCacheIndexes)
@@ -280,7 +255,7 @@ export class Virtualizer {
 
       const measurements = this.measurementsCache.slice(0, min)
 
-      for (let i = min; i < count; i++) {
+      for (let i = min; i < this.options.count; i++) {
         const furthestMeasurement =
           this.options.lanes === 1
             ? measurements[i - 1]
@@ -288,7 +263,7 @@ export class Virtualizer {
 
         const start = furthestMeasurement
           ? furthestMeasurement.end
-          : paddingStart + scrollMargin
+          : this.options.paddingStart + this.options.scrollMargin
 
         const measuredSize = itemSizeCache.get(i)
         const size =
