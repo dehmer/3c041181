@@ -549,8 +549,6 @@ export class Virtualizer {
     return [this.getOffsetForAlignment(toOffset, align), align]
   }
 
-  isDynamicMode = () => this.measureElementCache.size > 0
-
   cancelScrollToIndex = () => {
     if (this.scrollToIndexTimeoutId !== null) {
       clearTimeout(this.scrollToIndexTimeoutId)
@@ -572,21 +570,20 @@ export class Virtualizer {
 
     this._scrollToOffset(toOffset)
 
-    if (this.isDynamicMode()) {
-      this.scrollToIndexTimeoutId = setTimeout(() => {
-        this.scrollToIndexTimeoutId = null
-        const elementInDOM = this.measureElementCache.has(index)
+    // We are in dynamic mode by default:
+    this.scrollToIndexTimeoutId = setTimeout(() => {
+      this.scrollToIndexTimeoutId = null
+      const elementInDOM = this.measureElementCache.has(index)
 
-        if (elementInDOM) {
-          const [toOffset] = this.getOffsetForIndex(index, align)
-          if (!approxEqual(toOffset, this.scrollOffset)) {
-            this.scrollToIndex(index, { align })
-          }
-        } else {
+      if (elementInDOM) {
+        const [toOffset] = this.getOffsetForIndex(index, align)
+        if (!approxEqual(toOffset, this.scrollOffset)) {
           this.scrollToIndex(index, { align })
         }
-      })
-    }
+      } else {
+        this.scrollToIndex(index, { align })
+      }
+    })
   }
 
   scrollBy = delta => {
