@@ -1,9 +1,7 @@
 import { approxEqual, memo, notUndefined } from "./utils"
 export * from "./utils"
 
-export const defaultKeyExtractor = index => index
-
-export const defaultRangeExtractor = range => {
+export const rangeExtractor = range => {
   const start = Math.max(range.startIndex - range.overscan, 0)
   const end = Math.min(range.endIndex + range.overscan, range.count - 1)
 
@@ -119,21 +117,10 @@ export class Virtualizer {
     endIndex: 0
   }
 
-  constructor(opts) {
-    this.setOptions(opts)
-    this.scrollRect = this.options.initialRect
-    this.scrollOffset = this.options.initialOffset
-    this.measurementsCache = this.options.initialMeasurementsCache
-    this.measurementsCache.forEach(item => {
-      this.itemSizeCache.set(item.key, item.size)
-    })
+  constructor(options) {
 
-    this.maybeNotify()
-  }
-
-  setOptions = opts => {
-    Object.entries(opts).forEach(([key, value]) => {
-      if (typeof value === "undefined") delete opts[key]
+    Object.entries(options).forEach(([key, value]) => {
+      if (typeof value === "undefined") delete options[key]
     })
 
     this.options = {
@@ -144,8 +131,6 @@ export class Virtualizer {
       paddingEnd: 0,
       scrollPaddingStart: 0,
       scrollPaddingEnd: 0,
-      getItemKey: defaultKeyExtractor,
-      rangeExtractor: defaultRangeExtractor,
       onChange: () => {},
       initialRect: { width: 0, height: 0 },
       scrollMargin: 0,
@@ -153,8 +138,17 @@ export class Virtualizer {
       indexAttribute: "data-index",
       initialMeasurementsCache: [],
       lanes: 1,
-      ...opts
+      ...options
     }
+
+    this.scrollRect = this.options.initialRect
+    this.scrollOffset = this.options.initialOffset
+    this.measurementsCache = this.options.initialMeasurementsCache
+    this.measurementsCache.forEach(item => {
+      this.itemSizeCache.set(item.key, item.size)
+    })
+
+    this.maybeNotify()
   }
 
   notify = () => {
@@ -238,16 +232,14 @@ export class Virtualizer {
     () => [
       this.options.count,
       this.options.paddingStart,
-      this.options.scrollMargin,
-      this.options.getItemKey
+      this.options.scrollMargin
     ],
-    (count, paddingStart, scrollMargin, getItemKey) => {
+    (count, paddingStart, scrollMargin) => {
       this.pendingMeasuredCacheIndexes = []
       return {
         count,
         paddingStart,
-        scrollMargin,
-        getItemKey
+        scrollMargin
       }
     },
     {
@@ -291,7 +283,7 @@ export class Virtualizer {
 
   getMeasurements = memo(
     () => [this.memoOptions(), this.itemSizeCache],
-    ({ count, paddingStart, scrollMargin, getItemKey }, itemSizeCache) => {
+    ({ count, paddingStart, scrollMargin }, itemSizeCache) => {
       const min =
         this.pendingMeasuredCacheIndexes.length > 0
           ? Math.min(...this.pendingMeasuredCacheIndexes)
@@ -301,8 +293,6 @@ export class Virtualizer {
       const measurements = this.measurementsCache.slice(0, min)
 
       for (let i = min; i < count; i++) {
-        const key = getItemKey(i)
-
         const furthestMeasurement =
           this.options.lanes === 1
             ? measurements[i - 1]
@@ -312,7 +302,7 @@ export class Virtualizer {
           ? furthestMeasurement.end
           : paddingStart + scrollMargin
 
-        const measuredSize = itemSizeCache.get(key)
+        const measuredSize = itemSizeCache.get(i)
         const size =
           typeof measuredSize === "number"
             ? measuredSize
@@ -326,10 +316,10 @@ export class Virtualizer {
 
         measurements[i] = {
           index: i,
+          key: i,
           start,
           size,
           end,
-          key,
           lane
         }
       }
@@ -381,12 +371,11 @@ export class Virtualizer {
 
   getIndexes = memo(
     () => [
-      this.options.rangeExtractor,
       this.calculateRange(),
       this.options.overscan,
       this.options.count
     ],
-    (rangeExtractor, range, overscan, count) => {
+    (range, overscan, count) => {
       return rangeExtractor({
         ...range,
         overscan,
@@ -618,10 +607,7 @@ export class Virtualizer {
     if (behavior !== "smooth" && this.isDynamicMode()) {
       this.scrollToIndexTimeoutId = setTimeout(() => {
         this.scrollToIndexTimeoutId = null
-
-        const elementInDOM = this.measureElementCache.has(
-          this.options.getItemKey(index)
-        )
+        const elementInDOM = this.measureElementCache.has(index)
 
         if (elementInDOM) {
           const [toOffset] = this.getOffsetForIndex(index, align)
