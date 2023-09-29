@@ -80,13 +80,14 @@ export class Virtualizer {
   measureElementCache = new Map()
 
   observer = (() => {
-    let _ro = null
+    // One observer to rule them all:
+    let observer = null
 
     const get = () => {
-      if (_ro) {
-        return _ro
+      if (observer) {
+        return observer
       } else if (typeof ResizeObserver !== 'undefined') {
-        return (_ro = new ResizeObserver((entries) => {
+        return (observer = new ResizeObserver((entries) => {
           entries.forEach((entry) => {
             this._measureElement(entry.target, entry)
           })
