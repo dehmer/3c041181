@@ -16,7 +16,7 @@ export const defaultRangeExtractor = range => {
   return arr
 }
 
-export const observeElementRect = (instance, cb) => {
+const observeElementRect = (instance, cb) => {
   const element = instance.scrollElement
   if (!element) {
     return
@@ -48,27 +48,7 @@ export const observeElementRect = (instance, cb) => {
   }
 }
 
-export const observeWindowRect = (instance, cb) => {
-  const element = instance.scrollElement
-  if (!element) {
-    return
-  }
-
-  const handler = () => {
-    cb({ width: element.innerWidth, height: element.innerHeight })
-  }
-  handler()
-
-  element.addEventListener("resize", handler, {
-    passive: true
-  })
-
-  return () => {
-    element.removeEventListener("resize", handler)
-  }
-}
-
-export const observeElementOffset = (instance, cb) => {
+const observeElementOffset = (instance, cb) => {
   const element = instance.scrollElement
   if (!element) {
     return
@@ -76,26 +56,6 @@ export const observeElementOffset = (instance, cb) => {
 
   const handler = () => {
     cb(element[instance.options.horizontal ? "scrollLeft" : "scrollTop"])
-  }
-  handler()
-
-  element.addEventListener("scroll", handler, {
-    passive: true
-  })
-
-  return () => {
-    element.removeEventListener("scroll", handler)
-  }
-}
-
-export const observeWindowOffset = (instance, cb) => {
-  const element = instance.scrollElement
-  if (!element) {
-    return
-  }
-
-  const handler = () => {
-    cb(element[instance.options.horizontal ? "scrollX" : "scrollY"])
   }
   handler()
 
@@ -125,20 +85,7 @@ export const measureElement = (element, entry, instance) => {
   )
 }
 
-export const windowScroll = (
-  offset,
-  { adjustments = window.scrollY, behavior },
-  instance
-) => {
-  const toOffset = offset + adjustments
-
-  instance.scrollElement?.scrollTo?.({
-    [instance.options.horizontal ? "left" : "top"]: toOffset,
-    behavior
-  })
-}
-
-export const elementScroll = (
+const elementScroll = (
   offset,
   { adjustments = 0, behavior },
   instance
@@ -265,7 +212,7 @@ export class Virtualizer {
       })
 
       this.unsubs.push(
-        this.options.observeElementRect(this, rect => {
+        observeElementRect(this, rect => {
           const prev = this.scrollRect
           this.scrollRect = rect
           if (
@@ -279,7 +226,7 @@ export class Virtualizer {
       )
 
       this.unsubs.push(
-        this.options.observeElementOffset(this, offset => {
+        observeElementOffset(this, offset => {
           this.scrollAdjustments = 0
 
           if (this.scrollOffset === offset) {
@@ -740,7 +687,7 @@ export class Virtualizer {
     this.options.paddingEnd
 
   _scrollToOffset = (offset, { adjustments, behavior }) => {
-    this.options.scrollToFn(offset, { behavior, adjustments }, this)
+    elementScroll(offset, { behavior, adjustments }, this)
   }
 
   measure = () => {
