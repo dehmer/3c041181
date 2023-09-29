@@ -19,12 +19,25 @@ function RowVirtualizerDynamic() {
   })
 
   const items = virtualizer.getVirtualItems()
+  const scrollOptions = { align: "auto" }
 
   return (
     <div>
+      <button onClick={() => virtualizer.scrollToIndex(0, scrollOptions)}>
+        scroll to the top
+      </button>
+      <span style={{ padding: '0 4px' }} />
+      <button onClick={() => virtualizer.scrollToIndex(count / 2, scrollOptions)}>
+        scroll to the middle
+      </button>
+      <span style={{ padding: '0 4px' }} />
+      <button onClick={() => virtualizer.scrollToIndex(count - 1, scrollOptions)}>
+        scroll to the end
+      </button>
+      <hr />
       <div
         ref={parentRef}
-        className='List'
+        className='scroll-element'
       >
         <div
           style={{
@@ -44,12 +57,14 @@ function RowVirtualizerDynamic() {
           >
             {items.map(virtualRow => (
               <div
+                // key: defaults to item index
+                // data-index: used to communicate between dom nodes and resize observer
+                // ref: measurement function; registers resize observer per element
                 key={virtualRow.key}
                 data-index={virtualRow.index}
                 ref={virtualizer.measureElement}
-                style={{ padding: '10px 10px' }}
                 className={
-                  virtualRow.index % 2 ? 'ListItemOdd' : 'ListItemEven'
+                  virtualRow.index % 2 ? 'list-item__odd' : 'list-item__even'
                 }
               >
                 <b>Row {virtualRow.index}</b>: {sentences[virtualRow.index]}
