@@ -16,11 +16,8 @@ export const defaultRangeExtractor = range => {
   return arr
 }
 
-const observeElementRect = (instance, cb) => {
-  const element = instance.scrollElement
-  if (!element) {
-    return
-  }
+const observeElementRect = (element, cb) => {
+  if (!element) return
 
   const handler = rect => {
     const { width, height } = rect
@@ -48,15 +45,10 @@ const observeElementRect = (instance, cb) => {
   }
 }
 
-const observeElementOffset = (instance, cb) => {
-  const element = instance.scrollElement
-  if (!element) {
-    return
-  }
+const observeElementOffset = (element, cb) => {
+  if (!element) return
 
-  const handler = () => {
-    cb(element[instance.options.horizontal ? "scrollLeft" : "scrollTop"])
-  }
+  const handler = () => cb(element.scrollTop)
   handler()
 
   element.addEventListener("scroll", handler, {
@@ -68,21 +60,12 @@ const observeElementOffset = (instance, cb) => {
   }
 }
 
-export const measureElement = (element, entry, instance) => {
+const measureElement = (element, entry) => {
   if (entry?.borderBoxSize) {
     const box = entry.borderBoxSize[0]
-    if (box) {
-      const size = Math.round(
-        box[instance.options.horizontal ? "inlineSize" : "blockSize"]
-      )
-      return size
-    }
+    if (box) return Math.round(box.blockSize)
   }
-  return Math.round(
-    element.getBoundingClientRect()[
-      instance.options.horizontal ? "width" : "height"
-    ]
-  )
+  return Math.round(element.getBoundingClientRect().height)
 }
 
 const elementScroll = (
@@ -91,11 +74,7 @@ const elementScroll = (
   instance
 ) => {
   const toOffset = offset + adjustments
-
-  instance.scrollElement?.scrollTo?.({
-    [instance.options.horizontal ? "left" : "top"]: toOffset,
-    behavior
-  })
+  instance.scrollElement?.scrollTo?.({ top: toOffset, behavior })
 }
 
 export class Virtualizer {
@@ -165,11 +144,9 @@ export class Virtualizer {
       paddingEnd: 0,
       scrollPaddingStart: 0,
       scrollPaddingEnd: 0,
-      horizontal: false,
       getItemKey: defaultKeyExtractor,
       rangeExtractor: defaultRangeExtractor,
       onChange: () => {},
-      measureElement,
       initialRect: { width: 0, height: 0 },
       scrollMargin: 0,
       scrollingDelay: 150,
@@ -212,21 +189,17 @@ export class Virtualizer {
       })
 
       this.unsubs.push(
-        observeElementRect(this, rect => {
+        observeElementRect(this.scrollElement, rect => {
           const prev = this.scrollRect
           this.scrollRect = rect
-          if (
-            this.options.horizontal
-              ? rect.width !== prev.width
-              : rect.height !== prev.height
-          ) {
+          if (rect.height !== prev.height) {
             this.maybeNotify()
           }
         })
       )
 
       this.unsubs.push(
-        observeElementOffset(this, offset => {
+        observeElementOffset(this.scrollElement, offset => {
           this.scrollAdjustments = 0
 
           if (this.scrollOffset === offset) {
@@ -258,7 +231,7 @@ export class Virtualizer {
   }
 
   getSize = () => {
-    return this.scrollRect[this.options.horizontal ? "width" : "height"]
+    return this.scrollRect.height
   }
 
   memoOptions = memo(
@@ -470,7 +443,7 @@ export class Virtualizer {
       this.measureElementCache.set(item.key, node)
     }
 
-    const measuredItemSize = this.options.measureElement(node, entry, this)
+    const measuredItemSize = measureElement(node, entry)
 
     this.resizeItem(item, measuredItemSize)
   }
@@ -562,9 +535,7 @@ export class Virtualizer {
       toOffset = toOffset - size / 2
     }
 
-    const scrollSizeProp = this.options.horizontal
-      ? "scrollWidth"
-      : "scrollHeight"
+    const scrollSizeProp = "scrollHeight"
     const scrollSize = this.scrollElement
       ? "document" in this.scrollElement
         ? this.scrollElement.document.documentElement[scrollSizeProp]
