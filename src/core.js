@@ -66,15 +66,6 @@ const measureElement = (element, entry) => {
   return Math.round(element.getBoundingClientRect().height)
 }
 
-const elementScroll = (
-  offset,
-  { adjustments = 0, behavior },
-  instance
-) => {
-  const toOffset = offset + adjustments
-  instance.scrollElement?.scrollTo?.({ top: toOffset, behavior })
-}
-
 export class Virtualizer {
   unsubs = []
   scrollElement = null
@@ -177,10 +168,7 @@ export class Virtualizer {
 
       this.scrollElement = scrollElement
 
-      this._scrollToOffset(this.scrollOffset, {
-        adjustments: undefined,
-        behavior: undefined
-      })
+      this._scrollToOffset(this.scrollOffset)
 
       this.unsubs.push(
         observeElementRect(this.scrollElement, rect => {
@@ -447,10 +435,7 @@ export class Virtualizer {
           console.info("correction", delta)
         }
 
-        this._scrollToOffset(this.scrollOffset, {
-          adjustments: (this.scrollAdjustments += delta),
-          behavior: undefined
-        })
+        this._scrollToOffset(this.scrollOffset, this.scrollAdjustments += delta)
       }
 
       this.pendingMeasuredCacheIndexes.push(item.index)
@@ -532,7 +517,6 @@ export class Virtualizer {
       : 0
 
     const maxOffset = scrollSize - this.getSize()
-
     return Math.max(Math.min(maxOffset, toOffset), 0)
   }
 
@@ -574,67 +558,40 @@ export class Virtualizer {
     }
   }
 
-  scrollToOffset = (toOffset, { align = "start", behavior } = {}) => {
+  scrollToOffset = (toOffset, { align = "start" } = {}) => {
     this.cancelScrollToIndex()
-
-    if (behavior === "smooth" && this.isDynamicMode()) {
-      console.warn(
-        "The `smooth` scroll behavior is not fully supported with dynamic size."
-      )
-    }
-
-    this._scrollToOffset(this.getOffsetForAlignment(toOffset, align), {
-      adjustments: undefined,
-      behavior
-    })
+    this._scrollToOffset(this.getOffsetForAlignment(toOffset, align))
   }
 
-  scrollToIndex = (index, { align: initialAlign = "auto", behavior } = {}) => {
+  scrollToIndex = (index, { align: initialAlign = "auto" } = {}) => {
     index = Math.max(0, Math.min(index, this.options.count - 1))
 
     this.cancelScrollToIndex()
 
-    if (behavior === "smooth" && this.isDynamicMode()) {
-      console.warn(
-        "The `smooth` scroll behavior is not fully supported with dynamic size."
-      )
-    }
-
     const [toOffset, align] = this.getOffsetForIndex(index, initialAlign)
 
-    this._scrollToOffset(toOffset, { adjustments: undefined, behavior })
+    this._scrollToOffset(toOffset)
 
-    if (behavior !== "smooth" && this.isDynamicMode()) {
+    if (this.isDynamicMode()) {
       this.scrollToIndexTimeoutId = setTimeout(() => {
         this.scrollToIndexTimeoutId = null
         const elementInDOM = this.measureElementCache.has(index)
 
         if (elementInDOM) {
           const [toOffset] = this.getOffsetForIndex(index, align)
-
           if (!approxEqual(toOffset, this.scrollOffset)) {
-            this.scrollToIndex(index, { align, behavior })
+            this.scrollToIndex(index, { align })
           }
         } else {
-          this.scrollToIndex(index, { align, behavior })
+          this.scrollToIndex(index, { align })
         }
       })
     }
   }
 
-  scrollBy = (delta, { behavior } = {}) => {
+  scrollBy = delta => {
     this.cancelScrollToIndex()
-
-    if (behavior === "smooth" && this.isDynamicMode()) {
-      console.warn(
-        "The `smooth` scroll behavior is not fully supported with dynamic size."
-      )
-    }
-
-    this._scrollToOffset(this.scrollOffset + delta, {
-      adjustments: undefined,
-      behavior
-    })
+    this._scrollToOffset(this.scrollOffset + delta)
   }
 
   getTotalSize = () =>
@@ -643,8 +600,8 @@ export class Virtualizer {
     this.options.scrollMargin +
     this.options.paddingEnd
 
-  _scrollToOffset = (offset, { adjustments, behavior }) => {
-    elementScroll(offset, { behavior, adjustments }, this)
+  _scrollToOffset = (offset, adjustments = 0) => {
+    this.scrollElement?.scrollTo?.({ top: offset + adjustments })
   }
 
   measure = () => {
