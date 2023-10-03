@@ -58,13 +58,16 @@ const observeElementOffset = (element, cb) => {
   }
 }
 
-const measureElement = (element, entry) => {
-  if (entry?.borderBoxSize) {
-    const box = entry.borderBoxSize[0]
-    if (box) return Math.round(box.blockSize)
-  }
-  return Math.round(element.getBoundingClientRect().height)
-}
+const entryHeight = entry =>
+  entry?.borderBoxSize?.[0]
+    ? entry.borderBoxSize[0].blockSize
+    : undefined
+
+const elementHeight = element =>
+  element.getBoundingClientRect().height
+
+const height = (element, entry) =>
+  Math.round(entryHeight(entry) || elementHeight(element))
 
 export class Virtualizer {
   unsubs = []
@@ -396,9 +399,7 @@ export class Virtualizer {
       this.measureElementCache.set(item.key, node)
     }
 
-    const measuredItemSize = measureElement(node, entry)
-
-    this.resizeItem(item, measuredItemSize)
+    this.resizeItem(item, height(node, entry))
   }
 
   resizeItem = (item, size) => {
@@ -421,6 +422,10 @@ export class Virtualizer {
     }
   }
 
+  /**
+   * Ref callback for React.
+   * Gets called for each list entry
+   */
   measureElement = node => {
     if (!node) {
       return
