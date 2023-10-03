@@ -69,18 +69,34 @@ const elementHeight = element =>
 const height = (element, entry) =>
   Math.round(entryHeight(entry) || elementHeight(element))
 
+const dataIndex = element => element.getAttribute("data-index")
+
+const elementIndex = element =>
+  dataIndex(element) === undefined
+    ? -1
+    : parseInt(dataIndex(element), 10)
+
 export class Virtualizer {
   unsubs = []
   scrollElement = null
   isScrolling = false
   isScrollingTimeoutId = null
   scrollToIndexTimeoutId = null
+
+  // measurementsCache :: k, v => { k: v }
   measurementsCache = []
-  itemSizeCache = new Map()
+
+  // measureElementCache :: k, v => { k: v }
+  measureElementCache = new Map()
+
   pendingMeasuredCacheIndexes = []
+
+  // itemSizeCache :: Integer key, Integer height => { key: height }
+  itemSizeCache = new Map()
+
   scrollDirection = null
   scrollAdjustments = 0
-  measureElementCache = new Map()
+
 
   observer = (() => {
     // One observer to rule them all:
@@ -128,7 +144,6 @@ export class Virtualizer {
       onChange: () => {},
       scrollMargin: 0,
       scrollingDelay: 150,
-      indexAttribute: "data-index",
       lanes: 1,
       ...options
     }
@@ -257,6 +272,7 @@ export class Virtualizer {
           : 0
       this.pendingMeasuredCacheIndexes = []
 
+      // Only consider a certain starting range:
       const measurements = this.measurementsCache.slice(0, min)
 
       for (let i = min; i < this.options.count; i++) {
@@ -292,7 +308,6 @@ export class Virtualizer {
       }
 
       this.measurementsCache = measurements
-
       return measurements
     },
     {
@@ -355,26 +370,12 @@ export class Virtualizer {
     }
   )
 
-  indexFromElement = node => {
-    const attributeName = this.options.indexAttribute
-    const indexStr = node.getAttribute(attributeName)
-
-    if (!indexStr) {
-      console.warn(
-        `Missing attribute name '${attributeName}={index}' on measured element.`
-      )
-      return -1
-    }
-
-    return parseInt(indexStr, 10)
-  }
-
-  _measureElement = (node, entry) => {
-    const item = this.measurementsCache[this.indexFromElement(node)]
+  _measureElement = (element, entry) => {
+    const item = this.measurementsCache[elementIndex(element)]
     if (!item) {
       this.measureElementCache.forEach((cached, key) => {
-        if (cached === node) {
-          this.observer.unobserve(node)
+        if (cached === element) {
+          this.observer.unobserve(element)
           this.measureElementCache.delete(key)
         }
       })
@@ -383,7 +384,7 @@ export class Virtualizer {
 
     const prevNode = this.measureElementCache.get(item.key)
 
-    if (!node.isConnected) {
+    if (!element.isConnected) {
       if (prevNode) {
         this.observer.unobserve(prevNode)
         this.measureElementCache.delete(item.key)
@@ -391,35 +392,32 @@ export class Virtualizer {
       return
     }
 
-    if (prevNode !== node) {
+    if (prevNode !== element) {
       if (prevNode) {
         this.observer.unobserve(prevNode)
       }
-      this.observer.observe(node)
-      this.measureElementCache.set(item.key, node)
+      this.observer.observe(element)
+      this.measureElementCache.set(item.key, element)
     }
 
-    this.resizeItem(item, height(node, entry))
+    this.resizeItem(item, height(element, entry))
   }
 
-  resizeItem = (item, size) => {
-    const itemSize = this.itemSizeCache.get(item.key) ?? item.size
-    const delta = size - itemSize
+  resizeItem = (item, height) => {
+    const cachedHeight = this.itemSizeCache.get(item.key) ?? item.size
+    const delta = height - cachedHeight
+    if (delta === 0) return
 
-    if (delta !== 0) {
-      if (item.start < this.scrollOffset) {
-        if (process.env.NODE_ENV !== "production" && this.options.debug) {
-          console.info("correction", delta)
-        }
-
-        this._scrollToOffset(this.scrollOffset, this.scrollAdjustments += delta)
-      }
-
-      this.pendingMeasuredCacheIndexes.push(item.index)
-      this.itemSizeCache = new Map(this.itemSizeCache.set(item.key, size))
-
-      this.notify()
+    if (item.start < this.scrollOffset) {
+      this.scrollAdjustments += delta
+      this._scrollToOffset(this.scrollOffset, this.scrollAdjustments)
     }
+
+    this.pendingMeasuredCacheIndexes.push(item.index)
+    this.itemSizeCache.set(item.key, height)
+    this.itemSizeCache = new Map(this.itemSizeCache)
+
+    this.notify()
   }
 
   /**
