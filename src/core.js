@@ -83,7 +83,15 @@ export class Virtualizer {
   isScrollingTimeoutId = null
   scrollToIndexTimeoutId = null
 
-  // measurementsCache :: k, v => { k: v }
+  // Item :: {
+  //   Integer index,
+  //   Integer key,
+  //   Integer start,
+  //   Integer size,
+  //   Integer end
+  // }
+
+  // measurementsCache :: String key, Item item => { key: item }
   measurementsCache = []
 
   // measureElementCache :: k, v => { k: v }
@@ -236,6 +244,9 @@ export class Virtualizer {
           ? Math.min(...this.pendingMeasuredCacheIndexes)
           : 0
       this.pendingMeasuredCacheIndexes = []
+
+
+      // this.measurementsCache = fn(this.measurementsCache, options, itemSizeCache, ...)
 
       // Only consider a certain starting range:
       const measurements = this.measurementsCache.slice(0, min)
@@ -390,18 +401,7 @@ export class Virtualizer {
 
   getVirtualItems = memo(
     () => [this.getIndexes(), this.getMeasurements()],
-    (indexes, measurements) => {
-      const virtualItems = []
-
-      for (let k = 0, len = indexes.length; k < len; k++) {
-        const i = indexes[k]
-        const measurement = measurements[i]
-
-        virtualItems.push(measurement)
-      }
-
-      return virtualItems
-    },
+    (indexes, measurements) => indexes.map(index => measurements[index]),
     {
       key: process.env.NODE_ENV !== "production" && "getIndexes",
       debug: () => this.options.debug
