@@ -144,7 +144,6 @@ export class Virtualizer {
       onChange: () => {},
       scrollMargin: 0,
       scrollingDelay: 150,
-      lanes: 1,
       ...options
     }
 
@@ -229,40 +228,6 @@ export class Virtualizer {
     return this.scrollRect.height
   }
 
-  getFurthestMeasurement = (measurements, index) => {
-    const furthestMeasurementsFound = new Map()
-    const furthestMeasurements = new Map()
-    for (let m = index - 1; m >= 0; m--) {
-      const measurement = measurements[m]
-
-      if (furthestMeasurementsFound.has(measurement.lane)) {
-        continue
-      }
-
-      const previousFurthestMeasurement = furthestMeasurements.get(
-        measurement.lane
-      )
-      if (
-        previousFurthestMeasurement == null ||
-        measurement.end > previousFurthestMeasurement.end
-      ) {
-        furthestMeasurements.set(measurement.lane, measurement)
-      } else if (measurement.end < previousFurthestMeasurement.end) {
-        furthestMeasurementsFound.set(measurement.lane, true)
-      }
-
-      if (furthestMeasurementsFound.size === this.options.lanes) {
-        break
-      }
-    }
-
-    return furthestMeasurements.size === this.options.lanes
-      ? Array.from(furthestMeasurements.values()).sort(
-          (a, b) => a.end - b.end
-        )[0]
-      : undefined
-  }
-
   getMeasurements = memo(
     () => [this.itemSizeCache],
     (itemSizeCache) => {
@@ -276,11 +241,7 @@ export class Virtualizer {
       const measurements = this.measurementsCache.slice(0, min)
 
       for (let i = min; i < this.options.count; i++) {
-        const furthestMeasurement =
-          this.options.lanes === 1
-            ? measurements[i - 1]
-            : this.getFurthestMeasurement(measurements, i)
-
+        const furthestMeasurement = measurements[i - 1]
         const start = furthestMeasurement
           ? furthestMeasurement.end
           : this.options.paddingStart + this.options.scrollMargin
@@ -293,17 +254,12 @@ export class Virtualizer {
 
         const end = start + size
 
-        const lane = furthestMeasurement
-          ? furthestMeasurement.lane
-          : i % this.options.lanes
-
         measurements[i] = {
           index: i,
           key: i,
           start,
           size,
-          end,
-          lane
+          end
         }
       }
 
