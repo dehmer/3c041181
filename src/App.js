@@ -61,13 +61,13 @@ function RowVirtualizerDynamic() {
                 // data-index: used to communicate between dom nodes and resize observer
                 // ref: measurement function; registers resize observer per element
                 key={virtualRow.key}
-                data-index={virtualRow.index}
+                data-index={virtualRow.key}
                 ref={virtualizer.measureElement}
                 className={
-                  virtualRow.index % 2 ? 'list-item__odd' : 'list-item__even'
+                  virtualRow.key % 2 ? 'list-item__odd' : 'list-item__even'
                 }
               >
-                <b>Row {virtualRow.index}</b>: {sentences[virtualRow.index]}
+                <b>Row {virtualRow.key}</b>: {sentences[virtualRow.key]}
               </div>
             ))}
           </div>

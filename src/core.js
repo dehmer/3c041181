@@ -1,5 +1,7 @@
 import { approxEqual, memo, notUndefined } from "./utils"
 export * from "./utils"
+import Signal from '@syncpoint/signal'
+import * as R from 'ramda'
 
 export const rangeExtractor = range => {
   const start = Math.max(range.startIndex - range.overscan, 0)
@@ -105,32 +107,6 @@ export class Virtualizer {
   scrollDirection = null
   scrollAdjustments = 0
 
-
-  observer = (() => {
-    // One observer to rule them all:
-    let observer = null
-
-    const get = () => {
-      if (observer) {
-        return observer
-      } else if (typeof ResizeObserver !== 'undefined') {
-        return (observer = new ResizeObserver((entries) => {
-          entries.forEach((entry) => {
-            this._measureElement(entry.target, entry)
-          })
-        }))
-      } else {
-        return null
-      }
-    }
-
-    return {
-      disconnect: () => get()?.disconnect(),
-      observe: target => get()?.observe(target, { box: 'border-box' }),
-      unobserve: target => get()?.unobserve(target),
-    }
-  })()
-
   range = {
     startIndex: 0,
     endIndex: 0
@@ -159,7 +135,45 @@ export class Virtualizer {
     this.scrollOffset = 0
     this.measurementsCache = []
 
+    this.$heights = Signal.of(R.range(0, options.count).map(options.estimateSize))
+    this.$items = Signal.link(heights => {
+      return heights.reduce((acc, height, index) => {
+        const item = acc[index - 1]
+          ? { key: index, start: acc[index - 1].end, end: acc[index - 1].end + height }
+          : { key: index, start: 0, end: height }
+
+        acc.push(item)
+        return acc
+      }, [])
+    }, [this.$heights])
+
+    this.observer = new ResizeObserver(entries => {
+      entries.forEach((entry) => {
+        this._measureElement(entry.target, entry)
+        this.extractHeight(entry.target, entry)
+      })
+    })
+
     this.maybeNotify()
+  }
+
+  extractHeight = (element, entry) => {
+    const index = elementIndex(element)
+    const heights = this.$heights()
+    heights[index] = height(element, entry)
+    this.$heights(heights)
+  }
+
+
+  disconnect = () => this.observer.disconnect()
+  observe = target => {
+    // console.log('observing', target.getAttribute('data-index'))
+    this.observer.observe(target, { box: 'border-box' })
+  }
+
+  unobserve = target => {
+    // console.log('unobserving', target.getAttribute('data-index'))
+    this.observer.unobserve(target)
   }
 
   notify = () => {
@@ -173,9 +187,9 @@ export class Virtualizer {
   }
 
   _didMount = () => {
-    this.measureElementCache.forEach(this.observer.observe)
+    this.measureElementCache.forEach(this.observe)
     return () => {
-      this.observer.disconnect()
+      this.disconnect()
       this.cleanup()
     }
   }
@@ -342,7 +356,7 @@ export class Virtualizer {
     if (!item) {
       this.measureElementCache.forEach((cached, key) => {
         if (cached === element) {
-          this.observer.unobserve(element)
+          this.unobserve(element)
           this.measureElementCache.delete(key)
         }
       })
@@ -353,7 +367,7 @@ export class Virtualizer {
 
     if (!element.isConnected) {
       if (prevNode) {
-        this.observer.unobserve(prevNode)
+        this.unobserve(prevNode)
         this.measureElementCache.delete(item.key)
       }
       return
@@ -361,9 +375,9 @@ export class Virtualizer {
 
     if (prevNode !== element) {
       if (prevNode) {
-        this.observer.unobserve(prevNode)
+        this.unobserve(prevNode)
       }
-      this.observer.observe(element)
+      this.observe(element)
       this.measureElementCache.set(item.key, element)
     }
 
@@ -399,14 +413,16 @@ export class Virtualizer {
     this._measureElement(node, undefined)
   }
 
-  getVirtualItems = memo(
-    () => [this.getIndexes(), this.getMeasurements()],
-    (indexes, measurements) => indexes.map(index => measurements[index]),
-    {
-      key: process.env.NODE_ENV !== "production" && "getIndexes",
-      debug: () => this.options.debug
-    }
-  )
+  getVirtualItems = () => this.$items()
+
+  // getVirtualItems = memo(
+  //   () => [this.getIndexes(), this.getMeasurements()],
+  //   (indexes, measurements) => indexes.map(index => measurements[index]),
+  //   {
+  //     key: process.env.NODE_ENV !== "production" && "getIndexes",
+  //     debug: () => this.options.debug
+  //   }
+  // )
 
   getVirtualItemForOffset = offset => {
     const measurements = this.getMeasurements()
